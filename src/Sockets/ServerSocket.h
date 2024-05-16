@@ -11,12 +11,14 @@
 #include <stdexcept>
 #include <Memory/MemoryPoolManager.h>
 
+#include "Threads/Thread.h"
+
+
 class ServerSocket {
 public:
     ServerSocket(uint32_t port, apr_int32_t family) {
         memPool = MemoryPoolManager::acquireMemoryPool();
 
-        apr_threadattr_create(&thd_attr, memPool);
 
         apr_status_t retStatus = apr_sockaddr_info_get(&sa, nullptr, family, port, 0, memPool);
         if (retStatus != APR_SUCCESS) {
@@ -42,7 +44,6 @@ public:
 private:
     apr_socket_t *listenSocket = nullptr;
     apr_pool_t *memPool = nullptr;
-    apr_threadattr_t *thd_attr = nullptr;
     apr_sockaddr_t *sa = nullptr;
 
 public:
@@ -64,21 +65,20 @@ public:
         apr_socket_opt_set(ns, APR_SO_NONBLOCK, 0);
         apr_socket_timeout_set(ns, -1);
 
-        //Create the new thread
-        apr_thread_t *thd_obj;
-        retStatus = apr_thread_create(&thd_obj, NULL, processConnection, ns, memPool);
-
+        Thread thread;
+        thread.run(processConnection, ns);
         if (retStatus != APR_SUCCESS) {
             printAPRError(retStatus);
         }
     }
+
     ~ServerSocket() {
         apr_socket_close(listenSocket);
         MemoryPoolManager::poolRelease(memPool);
     }
 
 private:
-    static void * APR_THREAD_FUNC processConnection(apr_thread_t *thd, void *data) {
+    static void processConnection(void *data) {
         apr_socket_t *sock = (apr_socket_t *) data;
 
         while (true) {
@@ -90,7 +90,7 @@ private:
             if (rv == APR_EOF || len == 0) {
                 printf("Socket Closed\n");
                 apr_socket_close(sock);
-                apr_thread_exit(thd, 0);
+                return;
             }
 
             if (len > 0) {
