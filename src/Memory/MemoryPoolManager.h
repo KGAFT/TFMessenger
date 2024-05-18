@@ -7,7 +7,7 @@
 #include <apr_pools.h>
 #include <map>
 #include <vector>
-
+#include <cstdint>
 
 class MemoryPoolManager {
 private:

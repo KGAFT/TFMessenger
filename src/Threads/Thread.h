@@ -8,7 +8,6 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "IRunnable.h"
 #include "Memory/MemoryPoolManager.h"
 
 
