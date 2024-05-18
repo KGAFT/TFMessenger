@@ -10,7 +10,7 @@
 #include <apr_thread_proc.h>
 #include <stdexcept>
 #include <Memory/MemoryPoolManager.h>
-
+#include <Logging/Logger.h>
 #include "Threads/Thread.h"
 
 
@@ -19,16 +19,18 @@ public:
     ServerSocket(uint32_t port, apr_int32_t family) {
         memPool = MemoryPoolManager::acquireMemoryPool();
 
-
         apr_status_t retStatus = apr_sockaddr_info_get(&sa, nullptr, family, port, 0, memPool);
         if (retStatus != APR_SUCCESS) {
-            printAPRError(retStatus);
+            Logger::logAPRError(retStatus);
+            throw std::runtime_error("Failed to create server");
         }
 
         retStatus = apr_socket_create(&listenSocket, sa->family, SOCK_STREAM, APR_PROTO_TCP, memPool);
 
         if (retStatus != APR_SUCCESS) {
-            printAPRError(retStatus);
+            Logger::logAPRError(retStatus);
+            throw std::runtime_error("Failed to create server");
+
         }
 
         apr_socket_opt_set(listenSocket, APR_SO_NONBLOCK, 0);
@@ -37,8 +39,11 @@ public:
 
         retStatus = apr_socket_bind(listenSocket, sa);
         if (retStatus != APR_SUCCESS) {
-            printAPRError(retStatus);
+            Logger::logAPRError(retStatus);
+            throw std::runtime_error("Failed to create server");
         }
+
+        Logger::logMessage(new Message{std::string("Successfully created server on port: ")+std::to_string(port), "TFMessengerServer", Logger::currentTime(), MESSAGE_VERBOSE});
     }
 
 private:
@@ -47,29 +52,32 @@ private:
     apr_sockaddr_t *sa = nullptr;
 
 public:
-    void serverListen() {
+    apr_status_t serverListen() {
         apr_status_t retStatus = apr_socket_listen(listenSocket, SOMAXCONN);
         if (retStatus != APR_SUCCESS) {
-            printAPRError(retStatus);
+            Logger::logAPRError(retStatus);
         }
+        return retStatus;
     }
 
-    void acceptClient() {
-        apr_socket_t *ns; /* accepted socket */
-
+    apr_status_t acceptClient() {
+        apr_socket_t *ns;
         apr_status_t retStatus = apr_socket_accept(&ns, listenSocket, memPool);
         if (retStatus != APR_SUCCESS) {
-            printAPRError(retStatus);
+            Logger::logAPRError(retStatus);
+            return retStatus;
         }
 
         apr_socket_opt_set(ns, APR_SO_NONBLOCK, 0);
         apr_socket_timeout_set(ns, -1);
-
+        Logger::logMessage(new Message{std::string("Accepted client"), "TFMessengerServer", Logger::currentTime(), MESSAGE_VERBOSE});
         Thread thread;
         thread.run(processConnection, ns);
         if (retStatus != APR_SUCCESS) {
-            printAPRError(retStatus);
+            Logger::logAPRError(retStatus);
+            return retStatus;
         }
+        return retStatus;
     }
 
     ~ServerSocket() {
@@ -88,7 +96,7 @@ private:
             apr_status_t rv = apr_socket_recv(sock, buf, &len);
 
             if (rv == APR_EOF || len == 0) {
-                printf("Socket Closed\n");
+                Logger::logMessage(new Message{std::string("Client disconnected"), "TFMessengerServer", Logger::currentTime(), MESSAGE_VERBOSE});
                 apr_socket_close(sock);
                 return;
             }
@@ -101,11 +109,7 @@ private:
         }
     }
 
-    static void printAPRError(apr_status_t status) {
-        char errbuf[256];
-        apr_strerror(status, errbuf, sizeof(errbuf));
-        printf("error: %d, %s\n", status, errbuf);
-    }
+
 };
 
 
