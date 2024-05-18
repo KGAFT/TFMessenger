@@ -26,7 +26,7 @@ int main() {
     const char* msg = "Hello, world!";
     apr_size_t len = strlen(msg);
     apr_socket_send(client_sock, msg, &len);
-
+    while(true);
     apr_socket_close(client_sock);
 
     apr_pool_destroy(pool);

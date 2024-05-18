@@ -63,7 +63,9 @@ public:
     }
     static void logAPRError(apr_status_t status) {
         char* error = apr_strerror(status, errbuf, sizeof(errbuf));
-        logMessage(new Message{std::string(error), "ApachePortableRuntime", Logger::currentTime(), MESSAGE_ERROR});
+        if(error) {
+            logMessage(new Message{std::string(error), "ApachePortableRuntime", Logger::currentTime(), MESSAGE_ERROR});
+        }
     }
 private:
     static void loggerMain(void* data) {

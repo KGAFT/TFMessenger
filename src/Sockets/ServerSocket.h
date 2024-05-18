@@ -5,9 +5,7 @@
 #ifndef SERVERSOCKET_H
 #define SERVERSOCKET_H
 
-#include <apr_pools.h>
 #include <apr_network_io.h>
-#include <apr_thread_proc.h>
 #include <stdexcept>
 #include <Memory/MemoryPoolManager.h>
 #include <Logging/Logger.h>
@@ -70,13 +68,9 @@ public:
 
         apr_socket_opt_set(ns, APR_SO_NONBLOCK, 0);
         apr_socket_timeout_set(ns, -1);
-        Logger::logMessage(new Message{std::string("Accepted client"), "TFMessengerServer", Logger::currentTime(), MESSAGE_VERBOSE});
         Thread thread;
         thread.run(processConnection, ns);
-        if (retStatus != APR_SUCCESS) {
-            Logger::logAPRError(retStatus);
-            return retStatus;
-        }
+
         return retStatus;
     }
 
@@ -95,8 +89,9 @@ private:
 
             apr_status_t rv = apr_socket_recv(sock, buf, &len);
 
-            if (rv == APR_EOF || len == 0) {
-                Logger::logMessage(new Message{std::string("Client disconnected"), "TFMessengerServer", Logger::currentTime(), MESSAGE_VERBOSE});
+            if (rv != APR_SUCCESS) {
+                Logger::logAPRError(rv);
+                Logger::logMessage(new Message{std::string("Client disconnected")+std::to_string(rv), "TFMessengerServer", Logger::currentTime(), MESSAGE_VERBOSE});
                 apr_socket_close(sock);
                 return;
             }
