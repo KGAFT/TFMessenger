@@ -57,6 +57,7 @@ public:
                 return "ERROR";
                
         }
+        throw std::runtime_error("Unknown severity");
     }
     static std::time_t currentTime() {
         return std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -86,18 +87,21 @@ private:
         }
     }
     static void printMessage(Message* message, std::ofstream* outputFileStream) {
-        std::string outputTime = std::string(ctime(&message->messageTime));
-        outputTime[outputTime.size() - 1] = ' ';
-        std::string outputMessage = outputTime + message->source + " [" + severityToString(message->severity) + "] "  + message->text;
-        if(message->severity == MESSAGE_ERROR) {
-            std::cerr<<outputMessage<<std::endl;
-        } else {
-            std::cout<<outputMessage<<std::endl;
+        if(message) {
+            std::string outputTime = std::string(ctime(&message->messageTime));
+            outputTime[outputTime.size() - 1] = ' ';
+            std::string outputMessage = outputTime + message->source + " [" + severityToString(message->severity) + "] "  + message->text;
+            if(message->severity == MESSAGE_ERROR) {
+                std::cerr<<outputMessage<<std::endl;
+            } else {
+                std::cout<<outputMessage<<std::endl;
+            }
+            if(outputFileStream) {
+                (*outputFileStream)<<outputMessage<<std::endl;
+                outputFileStream->flush();
+            }
         }
-        if(outputFileStream) {
-            (*outputFileStream)<<outputMessage<<std::endl;
-            outputFileStream->flush();
-        }
+
     }
 };
 

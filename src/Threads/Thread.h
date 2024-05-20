@@ -18,6 +18,7 @@ private:
         ((Thread*)data)->runnable(((Thread*)data)->runnableData);
         ((Thread*)data)->threadExecuting = false;
         apr_thread_exit(thd, 0);
+        return nullptr;
     }
 public:
     Thread() {
